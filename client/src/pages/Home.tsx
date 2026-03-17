@@ -489,9 +489,8 @@ function InsightsPanel({ kpis, topClients, byCategoria, byTrimestre }: {
           <motion.div
             key={i}
             initial={{ opacity: 0, x: -10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.1 + i * 0.08 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 + i * 0.08 }}
             className="flex gap-3 group"
           >
             <div className={`mt-0.5 ${insight.color} opacity-70 group-hover:opacity-100 transition-opacity`}>
@@ -543,9 +542,8 @@ function RecentInvoicesTable() {
               <motion.tr
                 key={inv.numero}
                 initial={{ opacity: 0, x: -10 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: i * 0.03 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 + i * 0.03 }}
                 className="border-b border-border/20 hover:bg-surface-2/50 transition-colors"
               >
                 <td className="py-2.5 px-3 font-mono text-xs text-cyan">{inv.numero}</td>
@@ -556,8 +554,8 @@ function RecentInvoicesTable() {
                     {inv.categoria}
                   </span>
                 </td>
-                <td className="py-2.5 px-3 font-mono text-xs text-right text-foreground">{formatCurrency(inv.base_imponible)}</td>
-                <td className="py-2.5 px-3 font-mono text-xs text-right font-semibold text-cyan">{formatCurrency(inv.total)}</td>
+                <td className="py-2.5 px-3 font-mono text-xs text-right text-foreground">{formatCurrencyFull(inv.base_imponible)}</td>
+                <td className="py-2.5 px-3 font-mono text-xs text-right font-semibold text-cyan">{formatCurrencyFull(inv.total)}</td>
               </motion.tr>
             ))}
           </tbody>
