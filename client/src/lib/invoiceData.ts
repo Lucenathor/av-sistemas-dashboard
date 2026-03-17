@@ -298,3 +298,114 @@ export function getParetoThresholds() {
     totalClients: conc.length,
   };
 }
+
+// ─── Recurrence Analysis ───
+export function getRecurrenceAnalysis() {
+  const clientData: Record<string, { base: number; count: number }> = {};
+  for (const inv of invoices) {
+    if (!clientData[inv.cliente]) clientData[inv.cliente] = { base: 0, count: 0 };
+    clientData[inv.cliente].base += inv.base;
+    clientData[inv.cliente].count += 1;
+  }
+  const entries = Object.entries(clientData);
+  const oneTime = entries.filter(([_, d]) => d.count === 1);
+  const repeat = entries.filter(([_, d]) => d.count >= 2);
+  const loyal = entries.filter(([_, d]) => d.count >= 5);
+  const superLoyal = entries.filter(([_, d]) => d.count >= 10);
+  return {
+    total: entries.length,
+    oneTime: { count: oneTime.length, base: Math.round(oneTime.reduce((s, [_, d]) => s + d.base, 0) * 100) / 100 },
+    repeat: { count: repeat.length, base: Math.round(repeat.reduce((s, [_, d]) => s + d.base, 0) * 100) / 100 },
+    loyal: { count: loyal.length, base: Math.round(loyal.reduce((s, [_, d]) => s + d.base, 0) * 100) / 100 },
+    superLoyal: { count: superLoyal.length, base: Math.round(superLoyal.reduce((s, [_, d]) => s + d.base, 0) * 100) / 100 },
+  };
+}
+
+// ─── Seasonality Analysis ───
+export function getSeasonality() {
+  const monthData: Record<string, { base: number; count: number }> = {};
+  for (const inv of invoices) {
+    if (!monthData[inv.mes]) monthData[inv.mes] = { base: 0, count: 0 };
+    monthData[inv.mes].base += inv.base;
+    monthData[inv.mes].count += 1;
+  }
+  const months = MONTH_SHORT.map((m) => ({
+    mes: m,
+    base: Math.round((monthData[m]?.base || 0) * 100) / 100,
+    count: monthData[m]?.count || 0,
+    ticketMedio: monthData[m] ? Math.round((monthData[m].base / monthData[m].count) * 100) / 100 : 0,
+  }));
+  const best = months.reduce((a, b) => a.base > b.base ? a : b);
+  const worst = months.reduce((a, b) => a.base < b.base ? a : b);
+  const bestTicket = months.reduce((a, b) => a.ticketMedio > b.ticketMedio ? a : b);
+  return { months, best, worst, bestTicket, ratio: Math.round((best.base / worst.base) * 10) / 10 };
+}
+
+// ─── New Clients Per Trimestre ───
+export function getNewClientsPerTrimestre() {
+  const seen = new Set<string>();
+  const result: { trimestre: string; total: number; nuevos: number; pctNuevos: number }[] = [];
+  for (const t of ['T1', 'T2', 'T3', 'T4']) {
+    const tClients = new Set(invoices.filter((i) => i.trimestre === t).map((i) => i.cliente));
+    const nuevos = Array.from(tClients).filter((c) => !seen.has(c)).length;
+    result.push({ trimestre: t, total: tClients.size, nuevos, pctNuevos: Math.round((nuevos / tClients.size) * 100) });
+    tClients.forEach((c) => seen.add(c));
+  }
+  return result;
+}
+
+// ─── Ticket Medio Evolution per Trimestre for Alquiler ───
+export function getAlquilerTicketEvolution() {
+  const trimData: Record<string, { base: number; count: number }> = {};
+  for (const inv of invoices) {
+    if (inv.categoria !== 'Alquiler') continue;
+    if (!trimData[inv.trimestre]) trimData[inv.trimestre] = { base: 0, count: 0 };
+    trimData[inv.trimestre].base += inv.base;
+    trimData[inv.trimestre].count += 1;
+  }
+  return ['T1', 'T2', 'T3', 'T4'].map((t) => ({
+    trimestre: t,
+    ticketMedio: trimData[t] ? Math.round((trimData[t].base / trimData[t].count) * 100) / 100 : 0,
+    count: trimData[t]?.count || 0,
+  }));
+}
+
+// ─── Business Velocity ───
+export function getBusinessVelocity() {
+  const totalBase = invoices.reduce((s, i) => s + i.base, 0);
+  const days = 358; // Jan 7 to Dec 31
+  const laborDays = Math.round(days * 5 / 7);
+  return {
+    facturasPerDay: Math.round((invoices.length / days) * 100) / 100,
+    euroPerDay: Math.round(totalBase / days),
+    euroPerLaborDay: Math.round(totalBase / laborDays),
+    euroPerWeek: Math.round(totalBase / (days / 7)),
+    euroPerMonth: Math.round(totalBase / 12),
+  };
+}
+
+// ─── All Dormant Clients (not just >2000) ───
+export function getAllDormantClients() {
+  const clientTrims: Record<string, Set<string>> = {};
+  const clientBase: Record<string, number> = {};
+  const clientCount: Record<string, number> = {};
+  for (const inv of invoices) {
+    if (!clientTrims[inv.cliente]) clientTrims[inv.cliente] = new Set();
+    clientTrims[inv.cliente].add(inv.trimestre);
+    clientBase[inv.cliente] = (clientBase[inv.cliente] || 0) + inv.base;
+    clientCount[inv.cliente] = (clientCount[inv.cliente] || 0) + 1;
+  }
+  const dormant = Object.entries(clientTrims)
+    .filter(([_, trims]) => (trims.has('T1') || trims.has('T2')) && !trims.has('T3') && !trims.has('T4'));
+  const totalBase = dormant.reduce((s, [c]) => s + (clientBase[c] || 0), 0);
+  const topDormant = dormant
+    .map(([cliente, trims]) => ({
+      cliente,
+      base: Math.round(clientBase[cliente] * 100) / 100,
+      count: clientCount[cliente],
+      trimestres: Array.from(trims).sort(),
+    }))
+    .sort((a, b) => b.base - a.base)
+    .slice(0, 20);
+  return { total: dormant.length, totalBase: Math.round(totalBase * 100) / 100, topDormant };
+}

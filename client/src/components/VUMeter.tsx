@@ -8,13 +8,14 @@ import { useRef } from "react";
 
 interface VUMeterProps {
   value: number; // 0-100
-  label: string;
+  label?: string;
   sublabel?: string;
   delay?: number;
   color?: "cyan" | "orange" | "green";
+  height?: number;
 }
 
-export function VUMeter({ value, label, sublabel, delay = 0, color = "cyan" }: VUMeterProps) {
+export function VUMeter({ value, label, sublabel, delay = 0, color = "cyan", height = 20 }: VUMeterProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "100px" });
 
@@ -23,13 +24,15 @@ export function VUMeter({ value, label, sublabel, delay = 0, color = "cyan" }: V
 
   return (
     <div ref={ref} className="space-y-1.5">
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-foreground truncate mr-2">{label}</span>
-        {sublabel && (
-          <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">{sublabel}</span>
-        )}
-      </div>
-      <div className="flex gap-[2px] h-5 items-end">
+      {label && (
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm font-medium text-foreground truncate mr-2">{label}</span>
+          {sublabel && (
+            <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">{sublabel}</span>
+          )}
+        </div>
+      )}
+      <div className="flex gap-[2px] items-end" style={{ height }}>
         {Array.from({ length: segments }).map((_, i) => {
           const isFilled = i < filledSegments;
           const isHigh = i >= segments * 0.7;
@@ -45,11 +48,11 @@ export function VUMeter({ value, label, sublabel, delay = 0, color = "cyan" }: V
             <motion.div
               key={i}
               className={`flex-1 rounded-[1px] ${isFilled ? segColor : "bg-surface-2"}`}
-              initial={{ height: 4, opacity: 0.3 }}
+              initial={{ height: Math.max(4, height * 0.2), opacity: 0.3 }}
               animate={
                 isInView
                   ? {
-                      height: isFilled ? 20 : 8,
+                      height: isFilled ? height : Math.max(4, height * 0.4),
                       opacity: isFilled ? 1 : 0.3,
                     }
                   : {}
