@@ -17,7 +17,7 @@ import {
   getDormantClients,
   getReviewCandidates,
   getCrossSellOpportunities,
-  getEquipmentBreakdown,
+  getVentaBreakdown,
   getPublicVsPrivate,
   getGrowthRate,
   getParetoThresholds,
@@ -94,7 +94,7 @@ export default function Home() {
   const dormantClients = getDormantClients();
   const reviewCandidates = getReviewCandidates();
   const crossSell = getCrossSellOpportunities();
-  const equipment = getEquipmentBreakdown();
+  const equipment = getVentaBreakdown();
   const pubPriv = getPublicVsPrivate();
   const growth = getGrowthRate();
   const pareto = getParetoThresholds();
@@ -567,7 +567,7 @@ function GrowthInsightsPanel({ kpis, topClients, byCategoria, byTrimestre, growt
     { icon: ArrowUpRight, color: "text-cyan", title: "Cliente Estrella", text: `${topClients[0]?.cliente} = ${((topClients[0]?.base / kpis.totalBase) * 100).toFixed(1)}% de tu facturación. Los 3 primeros suman ${top3Pct}%.` },
     { icon: Building2, color: "text-purple-400", title: "Público vs Privado", text: `Sector público: ${((pubPriv.publico.base/kpis.totalBase)*100).toFixed(0)}% de facturación (${pubPriv.publico.clientes} clientes). Privado: ${((pubPriv.privado.base/kpis.totalBase)*100).toFixed(0)}% (${pubPriv.privado.clientes} clientes). Las licitaciones públicas ofrecen contratos de mayor volumen y recurrencia.` },
     { icon: Zap, color: "text-green-signal", title: "Mejor Trimestre", text: `${bestTrimestre.trimestre} (${bestTrimestre.label}) con ${formatCurrency(bestTrimestre.base)}. Peor: ${worstMonth.trimestre} con ${formatCurrency(worstMonth.base)}.` },
-    { icon: PieChart, color: "text-cyan", title: "Servicio Líder", text: `"${byCategoria[0]?.categoria}" domina con ${((byCategoria[0]?.base / kpis.totalBase) * 100).toFixed(0)}%. Oportunidad en Streaming (ticket medio 6.1k€ pero solo 5 facturas).` },
+    { icon: PieChart, color: "text-cyan", title: "Servicio Líder", text: `"${byCategoria[0]?.categoria}" domina con ${((byCategoria[0]?.base / kpis.totalBase) * 100).toFixed(0)}%. El Alquiler es el motor del negocio (75% de facturación).` },
   ];
 
   return (
@@ -608,8 +608,8 @@ function GrowthInsightsPanel({ kpis, topClients, byCategoria, byTrimestre, growt
   );
 }
 
-/* ─── Equipment Breakdown Panel ─── */
-function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getEquipmentBreakdown> }) {
+/* ─── Venta Real Panel ─── */
+function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getVentaBreakdown> }) {
   return (
     <motion.div
       {...fadeInUp}
@@ -618,7 +618,7 @@ function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getEquipme
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan via-cyan/50 to-transparent" />
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Desglose: Venta de Equipos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Desglose: Ventas Reales</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {equipment.totalFacturas} facturas · {formatCurrencyFull(equipment.totalBase)} en base imponible
           </p>
@@ -627,11 +627,11 @@ function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getEquipme
       </div>
 
       <div className="mb-5">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Productos más vendidos</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Conceptos de venta</p>
         <div className="flex flex-wrap gap-2">
-          {equipment.keywords.map(([kw, count]) => (
-            <span key={kw} className="text-xs px-2.5 py-1 rounded-full bg-cyan/10 text-cyan border border-cyan/20 font-mono">
-              {kw} <span className="text-muted-foreground">×{count}</span>
+          {equipment.topSales.length > 0 && equipment.topSales.slice(0, 5).map((inv) => inv.concepto).filter(Boolean).map((kw: string, idx: number) => (
+            <span key={idx} className="text-xs px-2.5 py-1 rounded-full bg-cyan/10 text-cyan border border-cyan/20 font-mono">
+              {kw.slice(0, 40)}
             </span>
           ))}
         </div>
@@ -647,7 +647,7 @@ function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getEquipme
                 <p className="text-xs text-foreground truncate">{inv.cliente}</p>
                 <p className="text-[10px] text-muted-foreground truncate">{inv.concepto.slice(0, 80)}...</p>
               </div>
-              <span className="text-xs font-mono font-semibold text-orange-accent flex-shrink-0">{formatCurrencyFull(inv.base_imponible)}</span>
+              <span className="text-xs font-mono font-semibold text-orange-accent flex-shrink-0">{formatCurrencyFull(inv.base)}</span>
             </div>
           ))}
         </div>
@@ -881,7 +881,7 @@ function CrossSellPanel({ opportunities }: { opportunities: ReturnType<typeof ge
       <div className="mt-4 p-3 rounded bg-green-signal/5 border border-green-signal/10">
         <p className="text-xs text-muted-foreground leading-relaxed">
           <span className="text-green-signal font-semibold">Oportunidad:</span> Estos clientes ya confían en AV Sistemas pero solo usan un tipo de servicio.
-          Ofrecerles servicios complementarios (ej: un cliente de "Venta de Equipos" podría necesitar "Instalación" o "Mantenimiento")
+          Ofrecerles servicios complementarios (ej: un cliente de "Alquiler" podría necesitar "Venta e Instalación" o "Mantenimiento")
           podría aumentar su ticket medio un 30-50% sin coste de adquisición.
         </p>
       </div>
@@ -896,7 +896,7 @@ function GrowthProposalsPanel({ kpis, dormant, crossSell, growth, pareto, equipm
   crossSell: ReturnType<typeof getCrossSellOpportunities>;
   growth: ReturnType<typeof getGrowthRate>;
   pareto: ReturnType<typeof getParetoThresholds>;
-  equipment: ReturnType<typeof getEquipmentBreakdown>;
+  equipment: ReturnType<typeof getVentaBreakdown>;
   pubPriv: ReturnType<typeof getPublicVsPrivate>;
 }) {
   const dormantTotal = dormant.reduce((s, c) => s + c.base, 0);
@@ -937,7 +937,7 @@ function GrowthProposalsPanel({ kpis, dormant, crossSell, growth, pareto, equipm
       borderColor: "border-cyan/10",
       title: "Servicio de Mantenimiento Recurrente",
       impact: "Ingresos recurrentes",
-      description: `Solo tienes 3 facturas de Mantenimiento (${formatCurrencyFull(2108)}). Con ${equipment.totalFacturas} ventas de equipos, cada cliente debería tener un contrato de mantenimiento anual. Si el 10% de tus clientes de equipos contratan mantenimiento a 500€/año, son ${formatCurrencyFull(Math.round(107 * 0.1) * 500)}/año en ingresos recurrentes.`,
+      description: `Solo tienes 5 facturas de Mantenimiento/Reparación. Con ${equipment.totalFacturas} ventas reales de equipos, cada cliente debería tener un contrato de mantenimiento anual. Si el 20% de tus clientes de equipos contratan mantenimiento a 500€/año, son ingresos recurrentes garantizados.`,
     },
     {
       icon: Activity,
@@ -955,7 +955,7 @@ function GrowthProposalsPanel({ kpis, dormant, crossSell, growth, pareto, equipm
       borderColor: "border-yellow-500/10",
       title: "Potenciar Streaming/Grabación",
       impact: "Ticket medio 6.1k€",
-      description: `Streaming/Grabación tiene el ticket medio más alto (6.125€) pero solo 5 facturas. Es un mercado en crecimiento post-COVID. Crear un paquete de "Streaming Profesional para Eventos" y promocionarlo a tus clientes de Eventos podría abrir una línea de negocio muy rentable.`,
+      description: `Streaming/Grabación tiene un ticket medio alto pero solo 3 facturas. Es un mercado en crecimiento post-COVID. Crear un paquete de "Streaming Profesional para Eventos" y promocionarlo a tus clientes de Alquiler podría abrir una línea de negocio muy rentable.`,
     },
   ];
 
@@ -1044,7 +1044,7 @@ function RecentInvoicesTable() {
                     {inv.categoria}
                   </span>
                 </td>
-                <td className="py-2.5 px-3 font-mono text-xs text-right text-foreground">{formatCurrencyFull(inv.base_imponible)}</td>
+                <td className="py-2.5 px-3 font-mono text-xs text-right text-foreground">{formatCurrencyFull(inv.base)}</td>
                 <td className="py-2.5 px-3 font-mono text-xs text-right font-semibold text-cyan">{formatCurrencyFull(inv.total)}</td>
               </motion.tr>
             ))}

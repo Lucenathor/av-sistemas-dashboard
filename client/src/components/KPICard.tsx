@@ -4,7 +4,6 @@
  */
 
 import { useCountUp } from "@/hooks/useCountUp";
-import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
 interface KPICardProps {
@@ -27,30 +26,28 @@ export function KPICard({
   decimals = 0,
   icon: Icon,
   trend,
-  delay = 0,
   accent = "cyan",
 }: KPICardProps) {
-  // Simple mount animation - count up starts immediately with delay
   const animatedValue = useCountUp(value, 2000, decimals);
 
   const accentColors = {
     cyan: {
       border: "border-cyan/20",
-      glow: "group-hover:shadow-[0_0_30px_oklch(0.82_0.15_192/0.12)]",
+      glow: "hover:shadow-[0_0_30px_oklch(0.82_0.15_192/0.12)]",
       icon: "text-cyan",
       indicator: "bg-cyan",
       text: "text-cyan",
     },
     orange: {
       border: "border-orange-accent/20",
-      glow: "group-hover:shadow-[0_0_30px_oklch(0.78_0.16_60/0.12)]",
+      glow: "hover:shadow-[0_0_30px_oklch(0.78_0.16_60/0.12)]",
       icon: "text-orange-accent",
       indicator: "bg-orange-accent",
       text: "text-orange-accent",
     },
     green: {
       border: "border-green-signal/20",
-      glow: "group-hover:shadow-[0_0_30px_oklch(0.75_0.18_145/0.12)]",
+      glow: "hover:shadow-[0_0_30px_oklch(0.75_0.18_145/0.12)]",
       icon: "text-green-signal",
       indicator: "bg-green-signal",
       text: "text-green-signal",
@@ -68,10 +65,7 @@ export function KPICard({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+    <div
       className={`group relative bg-card rounded-lg border ${colors.border} p-5 transition-all duration-500 ${colors.glow} overflow-hidden`}
     >
       {/* Top accent line */}
@@ -117,6 +111,6 @@ export function KPICard({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -1,8 +1,9 @@
 // AUTO-GENERATED from 495 real invoices of AV Sistemas (Audiovisual Experience SL)
 // Data extracted from PDF invoices - January to December 2025
+// Categories verified against invoice headers (ALQUILER, VENTA, etc.)
 // DO NOT EDIT MANUALLY
 
-import RAW_INVOICES from "./rawInvoices.json";
+import RAW_INVOICES from "../data/rawInvoices.json";
 
 // ─── Types ───
 export interface RawInvoice {
@@ -10,14 +11,13 @@ export interface RawInvoice {
   trimestre: string;
   fecha: string;
   cliente: string;
-  num_cliente?: number;
-  cif?: string;
-  base_imponible: number;
+  base: number;
   iva: number;
   total: number;
   concepto: string;
   categoria: string;
-  mes: number;
+  mes: string;
+  descripcion?: string;
 }
 
 // ─── Raw data ───
@@ -34,10 +34,17 @@ export function formatCurrencyFull(value: number): string {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(value);
 }
 
+// ─── Month helpers ───
+const MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+function mesIndex(mes: string): number {
+  const idx = MONTH_SHORT.indexOf(mes);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
 // ─── KPIs ───
 export function getKPIs() {
   const totalFacturado = invoices.reduce((s, i) => s + i.total, 0);
-  const totalBase = invoices.reduce((s, i) => s + i.base_imponible, 0);
+  const totalBase = invoices.reduce((s, i) => s + i.base, 0);
   const totalIVA = invoices.reduce((s, i) => s + i.iva, 0);
   const numFacturas = invoices.length;
   const clientesUnicos = new Set(invoices.map((i) => i.cliente)).size;
@@ -51,7 +58,7 @@ export function getByTrimestre() {
   const map: Record<string, { base: number; total: number; count: number }> = {};
   for (const inv of invoices) {
     if (!map[inv.trimestre]) map[inv.trimestre] = { base: 0, total: 0, count: 0 };
-    map[inv.trimestre].base += inv.base_imponible;
+    map[inv.trimestre].base += inv.base;
     map[inv.trimestre].total += inv.total;
     map[inv.trimestre].count += 1;
   }
@@ -71,15 +78,13 @@ export function getByTrimestre() {
 }
 
 // ─── By Month ───
-const MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
 export function getByMonth() {
   const map: Record<number, { base: number; total: number; count: number }> = {};
   for (const inv of invoices) {
-    const m = inv.mes;
+    const m = mesIndex(inv.mes);
     if (!m) continue;
     if (!map[m]) map[m] = { base: 0, total: 0, count: 0 };
-    map[m].base += inv.base_imponible;
+    map[m].base += inv.base;
     map[m].total += inv.total;
     map[m].count += 1;
   }
@@ -98,7 +103,7 @@ export function getTopClients(n = 10) {
   for (const inv of invoices) {
     const c = inv.cliente;
     if (!map[c]) map[c] = { base: 0, total: 0, count: 0 };
-    map[c].base += inv.base_imponible;
+    map[c].base += inv.base;
     map[c].total += inv.total;
     map[c].count += 1;
   }
@@ -114,7 +119,7 @@ export function getByCategoria() {
   for (const inv of invoices) {
     const cat = inv.categoria || "Otros";
     if (!map[cat]) map[cat] = { base: 0, total: 0, count: 0 };
-    map[cat].base += inv.base_imponible;
+    map[cat].base += inv.base;
     map[cat].total += inv.total;
     map[cat].count += 1;
   }
@@ -142,7 +147,7 @@ export function getDormantClients() {
   for (const inv of invoices) {
     if (!clientTrims[inv.cliente]) clientTrims[inv.cliente] = new Set();
     clientTrims[inv.cliente].add(inv.trimestre);
-    clientBase[inv.cliente] = (clientBase[inv.cliente] || 0) + inv.base_imponible;
+    clientBase[inv.cliente] = (clientBase[inv.cliente] || 0) + inv.base;
     clientCount[inv.cliente] = (clientCount[inv.cliente] || 0) + 1;
   }
   return Object.entries(clientTrims)
@@ -159,10 +164,10 @@ export function getDormantClients() {
 
 // ─── Review Candidates (recurrent + high value) ───
 export function getReviewCandidates() {
-  const clientData: Record<string, { base: number; count: number; categories: Set<string>; months: Set<number> }> = {};
+  const clientData: Record<string, { base: number; count: number; categories: Set<string>; months: Set<string> }> = {};
   for (const inv of invoices) {
     if (!clientData[inv.cliente]) clientData[inv.cliente] = { base: 0, count: 0, categories: new Set(), months: new Set() };
-    clientData[inv.cliente].base += inv.base_imponible;
+    clientData[inv.cliente].base += inv.base;
     clientData[inv.cliente].count += 1;
     clientData[inv.cliente].categories.add(inv.categoria);
     clientData[inv.cliente].months.add(inv.mes);
@@ -184,7 +189,7 @@ export function getCrossSellOpportunities() {
   const clientData: Record<string, { base: number; count: number; categories: Set<string> }> = {};
   for (const inv of invoices) {
     if (!clientData[inv.cliente]) clientData[inv.cliente] = { base: 0, count: 0, categories: new Set() };
-    clientData[inv.cliente].base += inv.base_imponible;
+    clientData[inv.cliente].base += inv.base;
     clientData[inv.cliente].count += 1;
     clientData[inv.cliente].categories.add(inv.categoria);
   }
@@ -199,40 +204,46 @@ export function getCrossSellOpportunities() {
     .sort((a, b) => b.base - a.base);
 }
 
-// ─── Equipment Breakdown ───
-export function getEquipmentBreakdown() {
-  const equipInvoices = invoices.filter((i) => i.categoria === 'Venta de Equipos');
-  const keywords: Record<string, number> = {};
-  const kwList = ['pantalla', 'led', 'proyector', 'sonido', 'micrófono', 'altavoces', 'cable', 'soporte', 'procesador', 'amplificador', 'cámara', 'streaming', 'dj', 'inalámbrico', 'rack', 'etapa', 'subwoofer', 'monitor', 'hdmi'];
-  for (const inv of equipInvoices) {
-    const c = inv.concepto.toLowerCase();
-    for (const kw of kwList) {
-      if (c.includes(kw)) keywords[kw] = (keywords[kw] || 0) + 1;
-    }
-  }
-  const topSales = [...equipInvoices].sort((a, b) => b.base_imponible - a.base_imponible).slice(0, 10);
+// ─── Venta (real sales) Breakdown ───
+export function getVentaBreakdown() {
+  const ventaInvoices = invoices.filter((i) =>
+    i.categoria === 'Venta' || i.categoria === 'Venta e Instalación'
+  );
+  const topSales = [...ventaInvoices].sort((a, b) => b.base - a.base).slice(0, 10);
   return {
-    totalFacturas: equipInvoices.length,
-    totalBase: Math.round(equipInvoices.reduce((s, i) => s + i.base_imponible, 0) * 100) / 100,
-    keywords: Object.entries(keywords).sort((a, b) => b[1] - a[1]).slice(0, 12),
+    totalFacturas: ventaInvoices.length,
+    totalBase: Math.round(ventaInvoices.reduce((s, i) => s + i.base, 0) * 100) / 100,
     topSales,
+  };
+}
+
+// ─── Alquiler Breakdown ───
+export function getAlquilerBreakdown() {
+  const alqInvoices = invoices.filter((i) => i.categoria === 'Alquiler');
+  const topAlquileres = [...alqInvoices].sort((a, b) => b.base - a.base).slice(0, 10);
+  const avgTicket = alqInvoices.reduce((s, i) => s + i.base, 0) / Math.max(alqInvoices.length, 1);
+  return {
+    totalFacturas: alqInvoices.length,
+    totalBase: Math.round(alqInvoices.reduce((s, i) => s + i.base, 0) * 100) / 100,
+    avgTicket: Math.round(avgTicket * 100) / 100,
+    topAlquileres,
   };
 }
 
 // ─── Public vs Private ───
 export function getPublicVsPrivate() {
-  const publicKw = ['ayuntamiento', 'diputación', 'diputacion', 'junta', 'universidad', 'fundación', 'fundacion', 'consejería', 'consejeria', 'ministerio', 'gobierno', 'colegio', 'instituto', 'hospital', 'museo', 'guardia civil', 'ceip', 'ies '];
+  const publicKw = ['ayuntamiento', 'diputación', 'diputacion', 'junta', 'universidad', 'fundación', 'fundacion', 'consejería', 'consejeria', 'ministerio', 'gobierno', 'colegio', 'instituto', 'hospital', 'museo', 'guardia civil', 'ceip', 'ies ', 'feria de valladolid'];
   let pubBase = 0, pubCount = 0, privBase = 0, privCount = 0;
   const pubClients = new Set<string>();
   const privClients = new Set<string>();
   for (const inv of invoices) {
     const isPub = publicKw.some((kw) => inv.cliente.toLowerCase().includes(kw));
     if (isPub) {
-      pubBase += inv.base_imponible;
+      pubBase += inv.base;
       pubCount += 1;
       pubClients.add(inv.cliente);
     } else {
-      privBase += inv.base_imponible;
+      privBase += inv.base;
       privCount += 1;
       privClients.add(inv.cliente);
     }
@@ -247,7 +258,7 @@ export function getPublicVsPrivate() {
 export function getGrowthRate() {
   const trimBases: Record<string, number> = {};
   for (const inv of invoices) {
-    trimBases[inv.trimestre] = (trimBases[inv.trimestre] || 0) + inv.base_imponible;
+    trimBases[inv.trimestre] = (trimBases[inv.trimestre] || 0) + inv.base;
   }
   const t1 = trimBases['T1'] || 1;
   const t4 = trimBases['T4'] || 0;
@@ -258,7 +269,7 @@ export function getGrowthRate() {
 export function getClientConcentration() {
   const map: Record<string, number> = {};
   for (const inv of invoices) {
-    map[inv.cliente] = (map[inv.cliente] || 0) + inv.base_imponible;
+    map[inv.cliente] = (map[inv.cliente] || 0) + inv.base;
   }
   const totalBase = Object.values(map).reduce((s, v) => s + v, 0);
   const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
