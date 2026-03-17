@@ -1,4 +1,4 @@
-/*
+/**
  * Design: "Control Room" - Audio-visual production control room aesthetic
  * Dark UI with cyan/orange neon accents, VU meter animations, modular grid layout
  * Font: Space Grotesk (headings), JetBrains Mono (data), Inter (body)
@@ -13,6 +13,14 @@ import {
   getTopClients,
   getByCategoria,
   getClientConcentration,
+  getMissingInvoices,
+  getDormantClients,
+  getReviewCandidates,
+  getCrossSellOpportunities,
+  getEquipmentBreakdown,
+  getPublicVsPrivate,
+  getGrowthRate,
+  getParetoThresholds,
   formatCurrency,
   formatCurrencyFull,
   invoices,
@@ -29,6 +37,16 @@ import {
   Activity,
   PieChart,
   ArrowUpRight,
+  AlertTriangle,
+  UserCheck,
+  ShoppingCart,
+  Star,
+  Lightbulb,
+  Cpu,
+  Building2,
+  UserX,
+  Repeat,
+  Mail,
 } from "lucide-react";
 import {
   BarChart,
@@ -72,13 +90,21 @@ export default function Home() {
   const topClients = getTopClients(10);
   const byCategoria = getByCategoria();
   const concentration = getClientConcentration();
+  const missingInvoices = getMissingInvoices();
+  const dormantClients = getDormantClients();
+  const reviewCandidates = getReviewCandidates();
+  const crossSell = getCrossSellOpportunities();
+  const equipment = getEquipmentBreakdown();
+  const pubPriv = getPublicVsPrivate();
+  const growth = getGrowthRate();
+  const pareto = getParetoThresholds();
 
   const maxClientBase = topClients[0]?.base || 1;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <HeroSection kpis={kpis} />
+      <HeroSection kpis={kpis} growth={growth} />
 
       {/* Main KPIs */}
       <section className="container py-8 -mt-16 relative z-10">
@@ -119,7 +145,8 @@ export default function Home() {
                 <h3 className="text-base font-semibold text-foreground">Resumen Ejecutivo 2025</h3>
                 <p className="text-sm text-muted-foreground">
                   Danny, tu negocio ha generado <span className="text-cyan font-mono font-semibold">{formatCurrency(kpis.totalFacturado)}</span> en facturación
-                  con <span className="text-orange-accent font-mono font-semibold">{kpis.clientesUnicos}</span> clientes activos
+                  con <span className="text-orange-accent font-mono font-semibold">{kpis.clientesUnicos}</span> clientes activos.
+                  Crecimiento T1→T4: <span className="text-green-signal font-mono font-semibold">+{growth.growthPct}%</span>
                 </p>
               </div>
             </div>
@@ -130,13 +157,40 @@ export default function Home() {
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="text-center">
-                <p className="text-2xl font-mono font-bold text-orange-accent">{(kpis.numFacturas / kpis.clientesUnicos).toFixed(1)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Fact/Cliente</p>
+                <p className="text-2xl font-mono font-bold text-green-signal">+{growth.growthPct}%</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Crecimiento</p>
               </div>
             </div>
           </div>
         </motion.div>
       </section>
+
+      {/* Missing Invoices Alert */}
+      {missingInvoices.length > 0 && (
+        <section className="container pb-8">
+          <motion.div
+            {...fadeInUp}
+            className="bg-card rounded-lg border border-orange-accent/20 p-5 relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-accent via-orange-accent/50 to-transparent" />
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-lg bg-orange-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-orange-accent" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Facturas No Encontradas</h3>
+                <p className="text-sm text-muted-foreground">
+                  De la factura #1 a la #{Math.max(...invoices.map(i => i.numero))}, faltan {missingInvoices.length} números:{" "}
+                  <span className="text-orange-accent font-mono font-semibold">
+                    {missingInvoices.map(n => `#${n}`).join(", ")}
+                  </span>.
+                  Probablemente sean facturas anuladas o rectificativas. Conviene verificar con la asesoría fiscal.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </section>
+      )}
 
       {/* Charts Row 1: Monthly Revenue + Trimester Comparison */}
       <section className="container pb-8">
@@ -158,14 +212,51 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Client Concentration + Insights */}
+      {/* Client Concentration + Growth Insights */}
       <section className="container pb-8">
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <ConcentrationChart data={concentration.slice(0, 20)} />
           </div>
-          <InsightsPanel kpis={kpis} topClients={topClients} byCategoria={byCategoria} byTrimestre={byTrimestre} />
+          <GrowthInsightsPanel kpis={kpis} topClients={topClients} byCategoria={byCategoria} byTrimestre={byTrimestre} growth={growth} pareto={pareto} pubPriv={pubPriv} />
         </div>
+      </section>
+
+      {/* ═══ GROWTH MARKETING SECTION ═══ */}
+      <section className="container pb-4">
+        <motion.div {...fadeInUp} className="flex items-center gap-3 mb-6">
+          <div className="h-[2px] w-12 bg-gradient-to-r from-orange-accent to-transparent" />
+          <h2 className="text-xl font-bold text-foreground tracking-tight">
+            Análisis de <span className="text-orange-accent">Crecimiento</span>
+          </h2>
+          <div className="h-[2px] flex-1 bg-gradient-to-r from-orange-accent/30 to-transparent" />
+        </motion.div>
+      </section>
+
+      {/* Equipment Breakdown + Public vs Private */}
+      <section className="container pb-8">
+        <div className="grid lg:grid-cols-2 gap-4">
+          <EquipmentPanel equipment={equipment} />
+          <PublicPrivatePanel data={pubPriv} totalBase={kpis.totalBase} />
+        </div>
+      </section>
+
+      {/* Dormant Clients + Review Candidates */}
+      <section className="container pb-8">
+        <div className="grid lg:grid-cols-2 gap-4">
+          <DormantClientsPanel clients={dormantClients} />
+          <ReviewCandidatesPanel candidates={reviewCandidates} />
+        </div>
+      </section>
+
+      {/* Cross-sell Opportunities */}
+      <section className="container pb-8">
+        <CrossSellPanel opportunities={crossSell} />
+      </section>
+
+      {/* Actionable Growth Proposals */}
+      <section className="container pb-8">
+        <GrowthProposalsPanel kpis={kpis} dormant={dormantClients} crossSell={crossSell} growth={growth} pareto={pareto} equipment={equipment} pubPriv={pubPriv} />
       </section>
 
       {/* Recent Invoices Table */}
@@ -181,7 +272,7 @@ export default function Home() {
             <span className="text-sm text-muted-foreground">Dashboard de Inteligencia 2025</span>
           </div>
           <span className="text-xs text-muted-foreground/60 font-mono">
-            Datos basados en {kpis.numFacturas} facturas procesadas
+            Datos basados en {kpis.numFacturas} facturas procesadas · Facturas #{missingInvoices.join(", #")} no encontradas
           </span>
         </div>
       </footer>
@@ -190,7 +281,7 @@ export default function Home() {
 }
 
 /* ─── Hero Section ─── */
-function HeroSection({ kpis }: { kpis: ReturnType<typeof getKPIs> }) {
+function HeroSection({ kpis, growth }: { kpis: ReturnType<typeof getKPIs>; growth: ReturnType<typeof getGrowthRate> }) {
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0">
@@ -213,9 +304,15 @@ function HeroSection({ kpis }: { kpis: ReturnType<typeof getKPIs> }) {
               <p className="text-xs text-muted-foreground">Audiovisuales Valladolid</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-signal pulse-glow" />
-            <span className="text-xs font-mono text-green-signal">EN VIVO</span>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 bg-green-signal/10 px-3 py-1.5 rounded-full">
+              <TrendingUp className="w-3.5 h-3.5 text-green-signal" />
+              <span className="text-xs font-mono font-semibold text-green-signal">+{growth.growthPct}% crecimiento</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-signal pulse-glow" />
+              <span className="text-xs font-mono text-green-signal">EN VIVO</span>
+            </div>
           </div>
         </motion.div>
 
@@ -449,24 +546,28 @@ function ConcentrationChart({ data }: { data: ReturnType<typeof getClientConcent
   );
 }
 
-/* ─── Insights Panel ─── */
-function InsightsPanel({ kpis, topClients, byCategoria, byTrimestre }: {
+/* ─── Growth Insights Panel (replaces old InsightsPanel) ─── */
+function GrowthInsightsPanel({ kpis, topClients, byCategoria, byTrimestre, growth, pareto, pubPriv }: {
   kpis: ReturnType<typeof getKPIs>;
   topClients: ReturnType<typeof getTopClients>;
   byCategoria: ReturnType<typeof getByCategoria>;
   byTrimestre: ReturnType<typeof getByTrimestre>;
+  growth: ReturnType<typeof getGrowthRate>;
+  pareto: ReturnType<typeof getParetoThresholds>;
+  pubPriv: ReturnType<typeof getPublicVsPrivate>;
 }) {
   const top3Revenue = topClients.slice(0, 3).reduce((s, c) => s + c.base, 0);
   const top3Pct = ((top3Revenue / kpis.totalBase) * 100).toFixed(1);
   const bestTrimestre = byTrimestre.reduce((a, b) => (a.base > b.base ? a : b));
-  const topCategory = byCategoria[0];
+  const worstMonth = byTrimestre.reduce((a, b) => (a.base < b.base ? a : b));
 
   const insights = [
-    { icon: ArrowUpRight, color: "text-cyan", title: "Cliente Estrella", text: `${topClients[0]?.cliente} representa el ${((topClients[0]?.base / kpis.totalBase) * 100).toFixed(1)}% de tu facturación total.` },
-    { icon: Target, color: "text-orange-accent", title: "Concentración Alta", text: `Tus 3 mejores clientes generan el ${top3Pct}% de los ingresos. Diversificar reduciría el riesgo.` },
-    { icon: Zap, color: "text-green-signal", title: "Mejor Trimestre", text: `${bestTrimestre.trimestre} (${bestTrimestre.label}) fue tu mejor periodo con ${formatCurrency(bestTrimestre.base)} facturados.` },
-    { icon: PieChart, color: "text-cyan", title: "Servicio Líder", text: `"${topCategory?.categoria}" es tu categoría más rentable con ${formatCurrency(topCategory?.base || 0)}.` },
-    { icon: TrendingUp, color: "text-orange-accent", title: "Potencial de Crecimiento", text: `Con ${kpis.clientesUnicos} clientes activos y un ticket medio de ${formatCurrency(kpis.ticketMedio)}, hay margen para upselling.` },
+    { icon: TrendingUp, color: "text-green-signal", title: `Crecimiento +${growth.growthPct}%`, text: `De ${formatCurrency(growth.t1)} (T1) a ${formatCurrency(growth.t4)} (T4). El negocio está en clara tendencia alcista.` },
+    { icon: Target, color: "text-orange-accent", title: "Riesgo de Concentración", text: `Solo ${pareto.top50} clientes (${((pareto.top50/pareto.totalClients)*100).toFixed(0)}%) generan el 50% de ingresos. ${pareto.top80} clientes generan el 80%.` },
+    { icon: ArrowUpRight, color: "text-cyan", title: "Cliente Estrella", text: `${topClients[0]?.cliente} = ${((topClients[0]?.base / kpis.totalBase) * 100).toFixed(1)}% de tu facturación. Los 3 primeros suman ${top3Pct}%.` },
+    { icon: Building2, color: "text-purple-400", title: "Público vs Privado", text: `Sector público: ${((pubPriv.publico.base/kpis.totalBase)*100).toFixed(0)}% de facturación (${pubPriv.publico.clientes} clientes). Privado: ${((pubPriv.privado.base/kpis.totalBase)*100).toFixed(0)}% (${pubPriv.privado.clientes} clientes). Las licitaciones públicas ofrecen contratos de mayor volumen y recurrencia.` },
+    { icon: Zap, color: "text-green-signal", title: "Mejor Trimestre", text: `${bestTrimestre.trimestre} (${bestTrimestre.label}) con ${formatCurrency(bestTrimestre.base)}. Peor: ${worstMonth.trimestre} con ${formatCurrency(worstMonth.base)}.` },
+    { icon: PieChart, color: "text-cyan", title: "Servicio Líder", text: `"${byCategoria[0]?.categoria}" domina con ${((byCategoria[0]?.base / kpis.totalBase) * 100).toFixed(0)}%. Oportunidad en Streaming (ticket medio 6.1k€ pero solo 5 facturas).` },
   ];
 
   return (
@@ -479,9 +580,9 @@ function InsightsPanel({ kpis, topClients, byCategoria, byTrimestre }: {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Insights Clave</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Análisis automático de tus datos</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Análisis de growth marketing</p>
         </div>
-        <Zap className="w-4 h-4 text-cyan opacity-50" />
+        <Lightbulb className="w-4 h-4 text-cyan opacity-50" />
       </div>
 
       <div className="space-y-4">
@@ -500,6 +601,395 @@ function InsightsPanel({ kpis, topClients, byCategoria, byTrimestre }: {
               <p className="text-xs font-semibold text-foreground mb-0.5">{insight.title}</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{insight.text}</p>
             </div>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Equipment Breakdown Panel ─── */
+function EquipmentPanel({ equipment }: { equipment: ReturnType<typeof getEquipmentBreakdown> }) {
+  return (
+    <motion.div
+      {...fadeInUp}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan via-cyan/50 to-transparent" />
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Desglose: Venta de Equipos</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {equipment.totalFacturas} facturas · {formatCurrencyFull(equipment.totalBase)} en base imponible
+          </p>
+        </div>
+        <Cpu className="w-4 h-4 text-cyan opacity-50" />
+      </div>
+
+      <div className="mb-5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Productos más vendidos</p>
+        <div className="flex flex-wrap gap-2">
+          {equipment.keywords.map(([kw, count]) => (
+            <span key={kw} className="text-xs px-2.5 py-1 rounded-full bg-cyan/10 text-cyan border border-cyan/20 font-mono">
+              {kw} <span className="text-muted-foreground">×{count}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Top 5 ventas más grandes</p>
+        <div className="space-y-2">
+          {equipment.topSales.slice(0, 5).map((inv) => (
+            <div key={inv.numero} className="flex items-start gap-3 p-2 rounded bg-surface-2/30 hover:bg-surface-2/50 transition-colors">
+              <span className="text-xs font-mono text-cyan flex-shrink-0">#{inv.numero}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-foreground truncate">{inv.cliente}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{inv.concepto.slice(0, 80)}...</p>
+              </div>
+              <span className="text-xs font-mono font-semibold text-orange-accent flex-shrink-0">{formatCurrencyFull(inv.base_imponible)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Public vs Private Panel ─── */
+function PublicPrivatePanel({ data, totalBase }: { data: ReturnType<typeof getPublicVsPrivate>; totalBase: number }) {
+  const pubPct = ((data.publico.base / totalBase) * 100).toFixed(1);
+  const privPct = ((data.privado.base / totalBase) * 100).toFixed(1);
+
+  return (
+    <motion.div
+      {...fadeInUp}
+      transition={{ duration: 0.5, delay: 0.1 }}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-purple-400 via-purple-400/50 to-transparent" />
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Sector Público vs Privado</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Distribución de facturación por tipo de cliente</p>
+        </div>
+        <Building2 className="w-4 h-4 text-purple-400 opacity-50" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-surface-2/30 rounded-lg p-4 border border-cyan/10">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Sector Público</p>
+          <p className="text-2xl font-mono font-bold text-cyan">{pubPct}%</p>
+          <p className="text-xs text-muted-foreground mt-1">{data.publico.clientes} clientes · {data.publico.count} fact.</p>
+          <p className="text-xs font-mono text-cyan mt-1">{formatCurrencyFull(data.publico.base)}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Ticket medio: {formatCurrencyFull(data.publico.ticketMedio)}</p>
+        </div>
+        <div className="bg-surface-2/30 rounded-lg p-4 border border-orange-accent/10">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Sector Privado</p>
+          <p className="text-2xl font-mono font-bold text-orange-accent">{privPct}%</p>
+          <p className="text-xs text-muted-foreground mt-1">{data.privado.clientes} clientes · {data.privado.count} fact.</p>
+          <p className="text-xs font-mono text-orange-accent mt-1">{formatCurrencyFull(data.privado.base)}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Ticket medio: {formatCurrencyFull(data.privado.ticketMedio)}</p>
+        </div>
+      </div>
+
+      {/* Visual bar */}
+      <div className="relative h-6 rounded-full overflow-hidden bg-surface-2/50">
+        <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan to-cyan/70 rounded-l-full" style={{ width: `${pubPct}%` }} />
+        <div className="absolute inset-y-0 right-0 bg-gradient-to-l from-orange-accent to-orange-accent/70 rounded-r-full" style={{ width: `${privPct}%` }} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[10px] font-mono font-semibold text-foreground">
+            Público {pubPct}% — Privado {privPct}%
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 p-3 rounded bg-purple-400/5 border border-purple-400/10">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="text-purple-400 font-semibold">Insight:</span>{" "}
+          {data.publico.ticketMedio > data.privado.ticketMedio ? (
+            <>El sector público tiene un ticket medio un <span className="text-cyan font-mono">{((data.publico.ticketMedio / data.privado.ticketMedio - 1) * 100).toFixed(0)}%</span> superior al privado. Aumentar la presencia en licitaciones públicas incrementaría la facturación media.</>
+          ) : (
+            <>El sector público representa el {pubPct}% de tu facturación con {data.publico.clientes} clientes institucionales. Las licitaciones públicas ofrecen contratos de mayor volumen y recurrencia. Registrarte en más plataformas de contratación pública podría duplicar este segmento.</>
+          )}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Dormant Clients Panel ─── */
+function DormantClientsPanel({ clients }: { clients: ReturnType<typeof getDormantClients> }) {
+  const totalDormant = clients.reduce((s, c) => s + c.base, 0);
+
+  return (
+    <motion.div
+      {...fadeInUp}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-red-500 via-red-500/50 to-transparent" />
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Clientes Dormidos</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Activos en T1/T2 pero no en T3/T4 · {formatCurrencyFull(totalDormant)} en riesgo
+          </p>
+        </div>
+        <UserX className="w-4 h-4 text-red-400 opacity-50" />
+      </div>
+
+      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+        {clients.slice(0, 15).map((client, i) => (
+          <motion.div
+            key={client.cliente}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: i * 0.04 }}
+            className="flex items-center gap-3 p-2.5 rounded bg-surface-2/30 hover:bg-red-500/5 transition-colors border border-transparent hover:border-red-500/10"
+          >
+            <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-mono text-red-400">{i + 1}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-foreground truncate">{client.cliente}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {client.count} fact. · Activo en: {client.trimestres.join(", ")}
+              </p>
+            </div>
+            <span className="text-xs font-mono font-semibold text-red-400 flex-shrink-0">{formatCurrencyFull(client.base)}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="mt-4 p-3 rounded bg-red-500/5 border border-red-500/10">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="text-red-400 font-semibold">Acción:</span> Estos {clients.length} clientes facturaron{" "}
+          <span className="text-red-400 font-mono">{formatCurrencyFull(totalDormant)}</span> en la primera mitad del año pero no han vuelto.
+          Un email o llamada de reactivación podría recuperar una parte significativa.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Review Candidates Panel ─── */
+function ReviewCandidatesPanel({ candidates }: { candidates: ReturnType<typeof getReviewCandidates> }) {
+  return (
+    <motion.div
+      {...fadeInUp}
+      transition={{ duration: 0.5, delay: 0.1 }}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-yellow-500 via-yellow-500/50 to-transparent" />
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Candidatos para Reseñas</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Clientes recurrentes (5+ facturas) ideales para pedir valoraciones
+          </p>
+        </div>
+        <Star className="w-4 h-4 text-yellow-500 opacity-50" />
+      </div>
+
+      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+        {candidates.map((client, i) => (
+          <motion.div
+            key={client.cliente}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: i * 0.04 }}
+            className="flex items-center gap-3 p-2.5 rounded bg-surface-2/30 hover:bg-yellow-500/5 transition-colors border border-transparent hover:border-yellow-500/10"
+          >
+            <div className="w-6 h-6 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+              <Mail className="w-3 h-3 text-yellow-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-foreground truncate">{client.cliente}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {client.count} facturas · {client.numCategories} servicios · {client.numMonths} meses activo
+              </p>
+            </div>
+            <span className="text-xs font-mono font-semibold text-yellow-500 flex-shrink-0">{formatCurrencyFull(client.base)}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="mt-4 p-3 rounded bg-yellow-500/5 border border-yellow-500/10">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="text-yellow-500 font-semibold">Estrategia:</span> Estos {candidates.length} clientes son los más leales.
+          Enviarles un email personalizado pidiendo una reseña en Google Business tendría una tasa de respuesta muy alta.
+          Prioriza los que usan más servicios diferentes.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Cross-sell Panel ─── */
+function CrossSellPanel({ opportunities }: { opportunities: ReturnType<typeof getCrossSellOpportunities> }) {
+  const totalPotential = opportunities.reduce((s, c) => s + c.base, 0);
+
+  return (
+    <motion.div
+      {...fadeInUp}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-green-signal via-green-signal/50 to-transparent" />
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Oportunidades de Cross-Selling</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {opportunities.length} clientes con solo 1 categoría de servicio ({formatCurrencyFull(totalPotential)} en base)
+          </p>
+        </div>
+        <ShoppingCart className="w-4 h-4 text-green-signal opacity-50" />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/50">
+              <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliente</th>
+              <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Solo usa</th>
+              <th className="text-center py-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Fact.</th>
+              <th className="text-right py-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Base</th>
+            </tr>
+          </thead>
+          <tbody>
+            {opportunities.slice(0, 12).map((opp, i) => (
+              <motion.tr
+                key={opp.cliente}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.03 }}
+                className="border-b border-border/20 hover:bg-green-signal/5 transition-colors"
+              >
+                <td className="py-2.5 px-3 text-xs text-foreground truncate max-w-[250px]">{opp.cliente}</td>
+                <td className="py-2.5 px-3">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-signal/10 text-green-signal border border-green-signal/20">
+                    {opp.soloCategoria}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 text-center font-mono text-xs text-muted-foreground">{opp.count}</td>
+                <td className="py-2.5 px-3 font-mono text-xs text-right font-semibold text-green-signal">{formatCurrencyFull(opp.base)}</td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 p-3 rounded bg-green-signal/5 border border-green-signal/10">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="text-green-signal font-semibold">Oportunidad:</span> Estos clientes ya confían en AV Sistemas pero solo usan un tipo de servicio.
+          Ofrecerles servicios complementarios (ej: un cliente de "Venta de Equipos" podría necesitar "Instalación" o "Mantenimiento")
+          podría aumentar su ticket medio un 30-50% sin coste de adquisición.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Growth Proposals Panel ─── */
+function GrowthProposalsPanel({ kpis, dormant, crossSell, growth, pareto, equipment, pubPriv }: {
+  kpis: ReturnType<typeof getKPIs>;
+  dormant: ReturnType<typeof getDormantClients>;
+  crossSell: ReturnType<typeof getCrossSellOpportunities>;
+  growth: ReturnType<typeof getGrowthRate>;
+  pareto: ReturnType<typeof getParetoThresholds>;
+  equipment: ReturnType<typeof getEquipmentBreakdown>;
+  pubPriv: ReturnType<typeof getPublicVsPrivate>;
+}) {
+  const dormantTotal = dormant.reduce((s, c) => s + c.base, 0);
+  const crossSellTotal = crossSell.reduce((s, c) => s + c.base, 0);
+
+  const proposals = [
+    {
+      icon: Repeat,
+      color: "text-red-400",
+      bgColor: "bg-red-500/5",
+      borderColor: "border-red-500/10",
+      title: "Campaña de Reactivación de Clientes Dormidos",
+      impact: `+${formatCurrency(dormantTotal * 0.3)} potencial`,
+      description: `Tienes ${dormant.length} clientes que facturaron ${formatCurrencyFull(dormantTotal)} en T1/T2 pero desaparecieron. Con una campaña de email + llamada personalizada, podrías recuperar el 30% (${formatCurrencyFull(dormantTotal * 0.3)}). Empieza por los 5 más grandes: ${dormant.slice(0, 3).map(d => d.cliente).join(", ")}...`,
+    },
+    {
+      icon: ShoppingCart,
+      color: "text-green-signal",
+      bgColor: "bg-green-signal/5",
+      borderColor: "border-green-signal/10",
+      title: "Programa de Cross-Selling Sistemático",
+      impact: `+${formatCurrency(crossSellTotal * 0.2)} potencial`,
+      description: `${crossSell.length} clientes solo usan 1 servicio (${formatCurrencyFull(crossSellTotal)} en base). Si el 20% contrata un servicio adicional, son ${formatCurrencyFull(crossSellTotal * 0.2)} extra. Crea paquetes: "Venta + Instalación + Mantenimiento" con descuento del 10%.`,
+    },
+    {
+      icon: Building2,
+      color: "text-purple-400",
+      bgColor: "bg-purple-400/5",
+      borderColor: "border-purple-400/10",
+      title: "Expandir Cartera de Clientes Públicos",
+      impact: `+${formatCurrency(pubPriv.publico.base * 0.5)} potencial`,
+      description: `El sector público ya supone ${formatCurrencyFull(pubPriv.publico.base)} (${((pubPriv.publico.base/kpis.totalBase)*100).toFixed(0)}%) con solo ${pubPriv.publico.clientes} clientes institucionales. Las licitaciones públicas ofrecen contratos recurrentes y de gran volumen. Registrarte en más plataformas de contratación pública y presentar ofertas a ayuntamientos de la provincia podría añadir un 50% más.`,
+    },
+    {
+      icon: Cpu,
+      color: "text-cyan",
+      bgColor: "bg-cyan/5",
+      borderColor: "border-cyan/10",
+      title: "Servicio de Mantenimiento Recurrente",
+      impact: "Ingresos recurrentes",
+      description: `Solo tienes 3 facturas de Mantenimiento (${formatCurrencyFull(2108)}). Con ${equipment.totalFacturas} ventas de equipos, cada cliente debería tener un contrato de mantenimiento anual. Si el 10% de tus clientes de equipos contratan mantenimiento a 500€/año, son ${formatCurrencyFull(Math.round(107 * 0.1) * 500)}/año en ingresos recurrentes.`,
+    },
+    {
+      icon: Activity,
+      color: "text-orange-accent",
+      bgColor: "bg-orange-accent/5",
+      borderColor: "border-orange-accent/10",
+      title: "Atacar la Estacionalidad Baja (Ene-Mar)",
+      impact: "+40% en T1",
+      description: `T1 es tu peor trimestre (${formatCurrency(growth.t1)}). Lanza promociones de "inicio de año" en enero: descuentos en instalaciones, paquetes de renovación de equipos, y ofertas de mantenimiento preventivo para llenar los meses flojos.`,
+    },
+    {
+      icon: Star,
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-500/5",
+      borderColor: "border-yellow-500/10",
+      title: "Potenciar Streaming/Grabación",
+      impact: "Ticket medio 6.1k€",
+      description: `Streaming/Grabación tiene el ticket medio más alto (6.125€) pero solo 5 facturas. Es un mercado en crecimiento post-COVID. Crear un paquete de "Streaming Profesional para Eventos" y promocionarlo a tus clientes de Eventos podría abrir una línea de negocio muy rentable.`,
+    },
+  ];
+
+  return (
+    <motion.div
+      {...fadeInUp}
+      className="bg-card rounded-lg border border-border/50 p-5 relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-accent via-cyan/50 to-green-signal" />
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Propuestas de Crecimiento</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            6 acciones concretas para aumentar la facturación basadas en tus datos reales
+          </p>
+        </div>
+        <Lightbulb className="w-5 h-5 text-orange-accent opacity-50" />
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {proposals.map((proposal, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 + i * 0.08 }}
+            className={`p-4 rounded-lg ${proposal.bgColor} border ${proposal.borderColor} hover:scale-[1.02] transition-transform`}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <proposal.icon className={`w-4 h-4 ${proposal.color}`} />
+              <span className={`text-xs font-mono font-semibold ${proposal.color}`}>{proposal.impact}</span>
+            </div>
+            <h4 className="text-sm font-semibold text-foreground mb-2">{proposal.title}</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">{proposal.description}</p>
           </motion.div>
         ))}
       </div>

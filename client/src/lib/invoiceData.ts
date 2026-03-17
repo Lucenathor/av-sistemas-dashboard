@@ -123,6 +123,137 @@ export function getByCategoria() {
     .sort((a, b) => b.base - a.base);
 }
 
+// ─── Missing Invoices ───
+export function getMissingInvoices(): number[] {
+  const nums = new Set(invoices.map((i) => i.numero));
+  const max = Math.max(...Array.from(nums));
+  const missing: number[] = [];
+  for (let n = 1; n <= max; n++) {
+    if (!nums.has(n)) missing.push(n);
+  }
+  return missing;
+}
+
+// ─── Dormant Clients (active T1/T2 but not T3/T4) ───
+export function getDormantClients() {
+  const clientTrims: Record<string, Set<string>> = {};
+  const clientBase: Record<string, number> = {};
+  const clientCount: Record<string, number> = {};
+  for (const inv of invoices) {
+    if (!clientTrims[inv.cliente]) clientTrims[inv.cliente] = new Set();
+    clientTrims[inv.cliente].add(inv.trimestre);
+    clientBase[inv.cliente] = (clientBase[inv.cliente] || 0) + inv.base_imponible;
+    clientCount[inv.cliente] = (clientCount[inv.cliente] || 0) + 1;
+  }
+  return Object.entries(clientTrims)
+    .filter(([_, trims]) => (trims.has('T1') || trims.has('T2')) && !trims.has('T3') && !trims.has('T4'))
+    .filter(([c]) => clientBase[c] > 2000)
+    .map(([cliente, trims]) => ({
+      cliente,
+      base: Math.round(clientBase[cliente] * 100) / 100,
+      count: clientCount[cliente],
+      trimestres: Array.from(trims).sort(),
+    }))
+    .sort((a, b) => b.base - a.base);
+}
+
+// ─── Review Candidates (recurrent + high value) ───
+export function getReviewCandidates() {
+  const clientData: Record<string, { base: number; count: number; categories: Set<string>; months: Set<number> }> = {};
+  for (const inv of invoices) {
+    if (!clientData[inv.cliente]) clientData[inv.cliente] = { base: 0, count: 0, categories: new Set(), months: new Set() };
+    clientData[inv.cliente].base += inv.base_imponible;
+    clientData[inv.cliente].count += 1;
+    clientData[inv.cliente].categories.add(inv.categoria);
+    clientData[inv.cliente].months.add(inv.mes);
+  }
+  return Object.entries(clientData)
+    .filter(([_, d]) => d.count >= 5)
+    .map(([cliente, d]) => ({
+      cliente,
+      base: Math.round(d.base * 100) / 100,
+      count: d.count,
+      numCategories: d.categories.size,
+      numMonths: d.months.size,
+    }))
+    .sort((a, b) => b.base - a.base);
+}
+
+// ─── Cross-sell Opportunities (single category clients) ───
+export function getCrossSellOpportunities() {
+  const clientData: Record<string, { base: number; count: number; categories: Set<string> }> = {};
+  for (const inv of invoices) {
+    if (!clientData[inv.cliente]) clientData[inv.cliente] = { base: 0, count: 0, categories: new Set() };
+    clientData[inv.cliente].base += inv.base_imponible;
+    clientData[inv.cliente].count += 1;
+    clientData[inv.cliente].categories.add(inv.categoria);
+  }
+  return Object.entries(clientData)
+    .filter(([_, d]) => d.categories.size === 1 && d.base > 5000)
+    .map(([cliente, d]) => ({
+      cliente,
+      base: Math.round(d.base * 100) / 100,
+      count: d.count,
+      soloCategoria: Array.from(d.categories)[0],
+    }))
+    .sort((a, b) => b.base - a.base);
+}
+
+// ─── Equipment Breakdown ───
+export function getEquipmentBreakdown() {
+  const equipInvoices = invoices.filter((i) => i.categoria === 'Venta de Equipos');
+  const keywords: Record<string, number> = {};
+  const kwList = ['pantalla', 'led', 'proyector', 'sonido', 'micrófono', 'altavoces', 'cable', 'soporte', 'procesador', 'amplificador', 'cámara', 'streaming', 'dj', 'inalámbrico', 'rack', 'etapa', 'subwoofer', 'monitor', 'hdmi'];
+  for (const inv of equipInvoices) {
+    const c = inv.concepto.toLowerCase();
+    for (const kw of kwList) {
+      if (c.includes(kw)) keywords[kw] = (keywords[kw] || 0) + 1;
+    }
+  }
+  const topSales = [...equipInvoices].sort((a, b) => b.base_imponible - a.base_imponible).slice(0, 10);
+  return {
+    totalFacturas: equipInvoices.length,
+    totalBase: Math.round(equipInvoices.reduce((s, i) => s + i.base_imponible, 0) * 100) / 100,
+    keywords: Object.entries(keywords).sort((a, b) => b[1] - a[1]).slice(0, 12),
+    topSales,
+  };
+}
+
+// ─── Public vs Private ───
+export function getPublicVsPrivate() {
+  const publicKw = ['ayuntamiento', 'diputación', 'diputacion', 'junta', 'universidad', 'fundación', 'fundacion', 'consejería', 'consejeria', 'ministerio', 'gobierno', 'colegio', 'instituto', 'hospital', 'museo', 'guardia civil', 'ceip', 'ies '];
+  let pubBase = 0, pubCount = 0, privBase = 0, privCount = 0;
+  const pubClients = new Set<string>();
+  const privClients = new Set<string>();
+  for (const inv of invoices) {
+    const isPub = publicKw.some((kw) => inv.cliente.toLowerCase().includes(kw));
+    if (isPub) {
+      pubBase += inv.base_imponible;
+      pubCount += 1;
+      pubClients.add(inv.cliente);
+    } else {
+      privBase += inv.base_imponible;
+      privCount += 1;
+      privClients.add(inv.cliente);
+    }
+  }
+  return {
+    publico: { base: Math.round(pubBase * 100) / 100, count: pubCount, clientes: pubClients.size, ticketMedio: Math.round((pubBase / Math.max(pubCount, 1)) * 100) / 100 },
+    privado: { base: Math.round(privBase * 100) / 100, count: privCount, clientes: privClients.size, ticketMedio: Math.round((privBase / Math.max(privCount, 1)) * 100) / 100 },
+  };
+}
+
+// ─── Growth Rate T1 to T4 ───
+export function getGrowthRate() {
+  const trimBases: Record<string, number> = {};
+  for (const inv of invoices) {
+    trimBases[inv.trimestre] = (trimBases[inv.trimestre] || 0) + inv.base_imponible;
+  }
+  const t1 = trimBases['T1'] || 1;
+  const t4 = trimBases['T4'] || 0;
+  return { t1: Math.round(t1), t4: Math.round(t4), growthPct: Math.round(((t4 - t1) / t1) * 1000) / 10 };
+}
+
 // ─── Client Concentration (Pareto) ───
 export function getClientConcentration() {
   const map: Record<string, number> = {};
@@ -143,4 +274,16 @@ export function getClientConcentration() {
       cumulative: (cumulative / totalBase) * 100,
     };
   });
+}
+
+// ─── Pareto thresholds ───
+export function getParetoThresholds() {
+  const conc = getClientConcentration();
+  const p50 = conc.find((c) => c.cumulative >= 50);
+  const p80 = conc.find((c) => c.cumulative >= 80);
+  return {
+    top50: p50 ? p50.rank : 0,
+    top80: p80 ? p80.rank : 0,
+    totalClients: conc.length,
+  };
 }
